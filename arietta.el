@@ -1,11 +1,8 @@
 ;;; arietta.el --- simple interface for the aria2 daemon.  -*- lexical-binding: t; -*-
 
 ;; Author: rayes
-;; Version: 1.0
 ;; Package-Requires: ((emacs "26.1") (json "1.5") (websocket "1.13"))
-;; URL: http://github.com/rayes0/
-
-;;; Commentary:
+;; URL: https://github.com/rayes0/elisp
 
 ;;; Code:
 ;; LocalWords:  arietta rayes aria2c websocket URI tellStatus GID gid MATCHER
@@ -82,7 +79,6 @@ All active downloads are always fetched."
                  (vconcat (vector (format "token:%s" arietta-rpc-secret)) params)))
   (let* ((message `(:jsonrpc "2.0" ,@args))
          (json (jsonrpc--json-encode message)))
-    (if (string= _id "-arietta.add") (setq json-test json))
     (websocket-send-text (arietta--websocket connection) json)))
 
 ;; from jsonrpc.el, to avoid loading the whole library
@@ -137,7 +133,7 @@ All active downloads are always fetched."
             ((string= -id "-arietta.remove") (message "arietta: sucessfully removed"))
             ((string= -id "-arietta.purge") (message "arietta: sucessfully purged"))
             ((string= -id "-arietta.purgeAndRemove") (message "arietta: sucessfully purged and removed"))
-            ((string= -id "-arietta.saveSession" (message "arietta: session saved")))
+            ((string= -id "-arietta.saveSession") (message "arietta: session saved"))
             ((eq -id nil) (arietta--notification-handler connection result))))))
 
 (cl-defmethod arietta--notification-handler ((connection arietta-rpc) data)
@@ -246,10 +242,10 @@ All active downloads are always fetched."
                          " - "
                          "file"))))))
 
-(defun arietta--divide (a b &optional percent prec)
+(defun arietta--divide (a b &optional percent)
   (if percent
-      (concat (calc-eval '("($/$$)*100" calc-internal-prec (or prec 4)) nil a b) "%")
-    (calc-eval '("$/$$" calc-internal-prec (or prec 4)) nil a b)))
+      (concat (calc-eval "round(($/$$)*100, 4)" nil a b) "%")
+    (calc-eval "round($/$$, 4)" nil a b)))
 
 (defun arietta--get-eta (down total)
   "Return human readable eta of download with a
@@ -329,8 +325,12 @@ download speed of DOWN and a total size of TOTAL."
         ((string= status "removed")  (propertize string 'face 'arietta-removed))
         ((string= status "error")    (propertize string 'face 'arietta-error))))
 
+(defvar arietta--refresh-timer nil)
+(defvar arietta--list-buffer nil)
+(defvar arietta--info-buffer nil)
+
 (defun arietta--list-click (p)
-  "Handle a tabulated list click."
+  "Handle a tabulated list click at point P."
   (mouse-set-point p)
   (arietta-connection-send arietta--rpc
                            :id "-arietta.status"
@@ -345,10 +345,6 @@ download speed of DOWN and a total size of TOTAL."
 (defun arietta--refresh ()
   (with-current-buffer arietta--list-buffer
     (revert-buffer)))
-
-(defvar arietta--refresh-timer nil)
-(defvar arietta--list-buffer nil)
-(defvar arietta--info-buffer nil)
 
 (defun arietta--setup-timer ()
   ;; (unless (and arietta--refresh-timer (eq major-mode 'arietta-mode))
@@ -365,14 +361,14 @@ download speed of DOWN and a total size of TOTAL."
     (setq-default arietta--refresh-timer nil)))
 
 (defun arietta--insert-info (item)
-  "Insert info from item into current buffer."
+  "Insert info from ITEM into current buffer."
   (thunk-let* ((torrent-maybe (plist-get item :bittorrent))
                (torrent-name (plist-get (plist-get torrent-maybe :info)
                                         :name))
                (seeding-maybe (plist-get item :seeder))
                (name (plist-get item :name))
                (status (plist-get item :status))
-               (total-length (plist-get item :totalLength))              
+               (total-length (plist-get item :totalLength))
                (down-speed (plist-get item :downloadSpeed))
                (up-speed (plist-get item :uploadSpeed))
                (completed (plist-get item :completedLength))
@@ -420,7 +416,7 @@ download speed of DOWN and a total size of TOTAL."
                                '("Progress" 12 t)
                                '("ETA" 8 t)
                                '("Status" 8 t)
-                               '("C" 5 t)
+                               '("C" 6 t)
                                '("Type" 15 t))
         tabulated-list-entries #'arietta--tabulated-entries
         tabulated-list-sort-key (cons "Progress" -1))
@@ -438,7 +434,7 @@ download speed of DOWN and a total size of TOTAL."
                            :params (vector (vector uri))))
 
 (defun arietta-add-uri-dir (udir uri)
-  "Like `arietta-add-uri', but use UDIR as the download directory."
+  "Like callin `arietta-add-uri' on URI, but use UDIR as the download directory."
   (interactive "DChoose Download Directory: \nsAdd URI: ")
   (cond ((string= uri "") (user-error "URI empty"))
         ((not udir) (user-error "No specified directory")))
@@ -463,7 +459,7 @@ download speed of DOWN and a total size of TOTAL."
                                                             (buffer-string))))))
 
 (defun arietta-add-torrent-dir (udir file)
-  "Like `arietta-add-torrent', but use UDIR as the download directory."
+  "Like calling `arietta-add-torrent' on FILE, but use UDIR as the download directory."
   (interactive "DChoose Download Directory: \nfTorrent file: ")
   (cond ((not (file-exists-p file)) (user-error "Can't read file"))
         ((not udir) (user-error "No specified directory")))

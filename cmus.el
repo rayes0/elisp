@@ -1,15 +1,15 @@
 ;;; cmus.el --- Very simple interface to control cmus from emacs    -*- lexical-binding: t -*-
-;; Author: rayes0
-;; Version: 0.1
-;; Package-Requires: ((vterm "1.0"))
 
-;;; Commentary:
+;; Author: rayes
+;; Package-Requires: ((vterm "1.0"))
+;; URL: https://github.com/rayes0/elisp
+
+;;; Code:
 
 (require 'vterm)
 
-;;; Code:
 (defcustom
-  cmus-command (executable-find "cmus")
+    cmus-command (executable-find "cmus")
   "Path to cmus executable."
   :group 'cmus
   :type 'string)
