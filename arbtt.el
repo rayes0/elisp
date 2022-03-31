@@ -1,13 +1,14 @@
 ;;; arbtt.el --- view arbtt stats from emacs    -*- lexical-binding: t -*-
+;; Version: 0.1
 
 ;; Author: rayes
-;; Package-Requires: ((emacs "29.1") vtable)
+;; Package-Requires: ((emacs "29"))
 ;; URL: https://github.com/rayes0/elisp
 
 ;;; Code:
 
 (require 'vtable)
-(require 'subr-x)
+(eval-when-compile (require 'subr-x))
 
 (defgroup arbtt nil
   "View arbtt stats from emacs."
@@ -32,15 +33,16 @@
 
 (defun arbtt--contents-insert (buf parsed)
   (with-current-buffer buf
-    (erase-buffer)
-    (make-vtable
-     :columns (car parsed)
-     :objects (cdr parsed)
-     :keymap (define-keymap
-                 "q" #'bury-buffer
-               "s" #'isearch-forward
-               "t" #'arbtt-filter-tag
-               "c" #'arbtt-filter-category))))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (make-vtable
+       :columns (car parsed)
+       :objects (cdr parsed)
+       :keymap (define-keymap
+                   "q" #'bury-buffer
+                 "s" #'isearch-forward
+                 "t" #'arbtt-filter-tag
+                 "c" #'arbtt-filter-category)))))
 
 (defun arbtt-filter-category (cat)
   "Interactively filter a tag in the arbtt buffer."
@@ -52,6 +54,7 @@
   (interactive "MEnter tag: ")
   (if tag (arbtt (concat "--only=" tag))))
 
+;;;###autoload
 (defun arbtt (&optional flags)
   "View arbtt stats."
   (interactive)
@@ -69,10 +72,12 @@
                                    '("--output-format=csv"))
                   :filter #'arbtt--filter
                   :stderr (get-buffer-create "*arbtt-debug*")))
-  (with-current-buffer (get-buffer-create "*arbtt*")
-    (erase-buffer)
+  (with-current-buffer (get-buffer-create "*arbtt*")    
     (view-mode 1)
-    (insert "processing...")
+    ;; (read-only-mode 1)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert "processing..."))
     (pop-to-buffer-same-window (current-buffer))))
 
 (provide 'arbtt)

@@ -1,4 +1,5 @@
 ;;; cmus.el --- Very simple interface to control cmus from emacs    -*- lexical-binding: t -*-
+;; Version: 0.1
 
 ;; Author: rayes
 ;; Package-Requires: ((vterm "1.0"))
@@ -8,14 +9,12 @@
 
 (require 'vterm)
 
-(defcustom
-    cmus-command (executable-find "cmus")
+(defcustom cmus-command (executable-find "cmus")
   "Path to cmus executable."
   :group 'cmus
   :type 'string)
 
-(defcustom
-  cmus-remote-command (executable-find "cmus-remote")
+(defcustom cmus-remote-command (executable-find "cmus-remote")
   "Path to cmus-remote executable."
   :group 'cmus
   :type 'string)
@@ -42,6 +41,7 @@
   (interactive)
   (call-process cmus-remote-command nil nil nil "-r"))
 
+;;;###autoload
 (defun cmus-vterm-start ()
   "Create a new vterm buffer for cmus."
   (interactive)
@@ -54,6 +54,7 @@
         (local-set-key (kbd "C-c C-k") 'bury-buffer))
       (switch-to-buffer cmus-global-buffer))))
 
+;;;###autoload
 (defun cmus-vterm-start-bg ()
   "Run cmus-vterm-start and then bury the cmus buffer."
   (interactive)
@@ -65,6 +66,26 @@
   (interactive)
   (when (buffer-live-p cmus-global-buffer)
     (switch-to-buffer cmus-global-buffer)))
+
+(defun cmus-running-p ()
+  "Return t is cmus is running."
+  (when (get-buffer-process cmus-global-buffer) t))
+
+(defun cmus-playing-p ()
+  "Return t if cmus is both currently running and playing."
+  (when (cmus-running-p)
+    (with-temp-buffer
+      (erase-buffer)
+      (call-process cmus-remote-command nil t nil "-Q")
+      (when (string-match-p "^status playing\n.*" (buffer-string)) t))))
+
+;; (defun cmus-current-song ()
+;;   "Return string of the currently active song."
+;;   (when (cmus-running-p)
+;;     (with-temp-buffer
+;;       (erase-buffer)
+;;       (call-process cmus-remote-command nil t nil "-Q")
+;;       )))
 
 (defun cmus-setup-default ()
   "Setup prefix command and default keybinds for cmus."

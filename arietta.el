@@ -1,18 +1,18 @@
 ;;; arietta.el --- simple interface for the aria2 daemon.  -*- lexical-binding: t; -*-
+;; Version: 1.0
 
 ;; Author: rayes
 ;; Package-Requires: ((emacs "26.1") (json "1.5") (websocket "1.13"))
 ;; URL: https://github.com/rayes0/elisp
 
 ;;; Code:
-;; LocalWords:  arietta rayes aria2c websocket URI tellStatus GID gid MATCHER
-;; LocalWords:  STR ARG jsonrpc
 
 (require 'websocket)
 (require 'json)
 (require 'cl-print)
 (require 'tabulated-list)
 (require 'thunk)
+(require 'notifications)
 
 (defgroup arietta nil
   "Interface for the aria2 daemon."
@@ -137,8 +137,9 @@ All active downloads are always fetched."
             ((eq -id nil) (arietta--notification-handler connection result))))))
 
 (cl-defmethod arietta--notification-handler ((connection arietta-rpc) data)
-  (message "arietta: notification recieved")
-  (setq plist-test data))
+  ;; (message "arietta: notification recieved")
+  (with-current-buffer (get-buffer-create "*arietta-debug*")
+    (insert "\n\n======" (format "%s" data))))
 
 
 (defun arietta--init-aria2-rpc ()
@@ -243,9 +244,11 @@ All active downloads are always fetched."
                          "file"))))))
 
 (defun arietta--divide (a b &optional percent)
-  (if percent
-      (concat (calc-eval "round(($/$$)*100, 4)" nil a b) "%")
-    (calc-eval "round($/$$, 4)" nil a b)))
+  (if (eq b 0)
+      "inf"
+    (if percent
+        (concat (calc-eval "round(($/$$)*100, 4)" nil a b) "%")
+      (calc-eval "round($/$$, 4)" nil a b))))
 
 (defun arietta--get-eta (down total)
   "Return human readable eta of download with a
