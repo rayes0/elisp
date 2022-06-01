@@ -3,7 +3,7 @@ Everything looks like magic when you don’t understand it.
 
   --- Catherynne M. Valente, Afterword in /The Melancholy of Mechagirl/
 #+end_quote
-Note: This readme is [[https://github.com/rayes0/elisp/blob/master/.github/make-readme.el][automatically generated]].
+Note: This readme is [[https://github.com/rayes0/elisp/blob/main/.github/make-readme.el][automatically generated]].
 * General Notes
 - Installation :: I recommend either cloning the repo and running one of the ~package-install-*~ functions, or using [[https://github.com/quelpa/quelpa][quelpa]]. This readme contains plug-and-play quelpa recipes for convenience.
 - Customization :: Almost all the packages that are configurable have documented options organized into their groups. Check ~M-x customize-group RET PACKAGE_NAME~ for details.
@@ -54,7 +54,7 @@ and do all the usual things a music player can do.
 **  nnchan
 | summary | gnus backend for 4chan |
 | quelpa  | ~(quelpa '(nnchan :fetcher github :repo "rayes0/elisp" :files ("nnchan.el")))~ |
-Thanks: https://github.com/dickmao/nntwitter/
+A Gnus backend for 4chan, using the read only JSON API.
 **  torrent-info
 | summary | show info from torrent files |
 | quelpa  | ~(quelpa '(torrent-info :fetcher github :repo "rayes0/elisp" :files ("torrent-info.el")))~ |
