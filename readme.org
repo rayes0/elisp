@@ -1,0 +1,62 @@
+#+begin_quote
+Everything looks like magic when you don’t understand it.
+
+  --- Catherynne M. Valente, Afterword in /The Melancholy of Mechagirl/
+#+end_quote
+Note: This readme is [[https://github.com/rayes0/elisp/blob/master/.github/make-readme.el][automatically generated]].
+* General Notes
+- Installation :: I recommend either cloning the repo and running one of the ~package-install-*~ functions, or using [[https://github.com/quelpa/quelpa][quelpa]]. This readme contains plug-and-play quelpa recipes for convenience.
+- Customization :: Almost all the packages that are configurable have documented options organized into their groups. Check ~M-x customize-group RET PACKAGE_NAME~ for details.
+
+/n.b./ Some of these packages either depend on or are heavily enhanced by things part of very new emacs versions only (namely vtable, found in unreleased emacs 29). You may have to pull some things from newer emacs source code and install them yourself if you are using an older emacs.
+* Contents
+- [[#arbtt][ ~arbtt~ ]] - view arbtt stats from emacs
+- [[#arietta][ ~arietta~ ]] - simple interface for the aria2 daemon.
+- [[#chika][ ~chika~ ]] - transient interface for linux package management
+- [[#cmus][ ~cmus~ ]] - very simple interface to control cmus from emacs
+- [[#nnchan][ ~nnchan~ ]] - gnus backend for 4chan
+- [[#torrent-info][ ~torrent-info~ ]] - show info from torrent files
+* Packages
+**  arbtt
+| summary | view arbtt stats from emacs |
+| quelpa  | ~(quelpa '(arbtt :fetcher github :repo "rayes0/elisp" :files ("arbtt.el")))~ |
+Simple way to view [[https://github.com/nomeata/arbtt][arbtt]] stats from emacs.
+Currently very primitive. Runs arbtt with csv output, and parses that into a table.
+**  arietta
+| summary | simple interface for the aria2 daemon. |
+| quelpa  | ~(quelpa '(arietta :fetcher github :repo "rayes0/elisp" :files ("arietta.el")))~ |
+(Nearly) fully featured interface for the aria2 daemon over websocket.
+
+To use, you will need to start aria2 as a daemon with rpc enabled.
+Check the aria2 manpage for more details.
+**  chika
+| summary | transient interface for linux package management |
+| quelpa  | ~(quelpa '(chika :fetcher github :repo "rayes0/elisp" :files ("chika.el")))~ |
+An simple interface for package management on linux from Emacs using <https://github.com/magit/transient>.
+
+It will:
+  - run a execute a package manager and insert output into a buffer.
+  - ask for root when performing certain actions, using TRAMP when appropriate.
+  - try not to abstract things too much, do things simply
+
+Mainly written for:
+  - quickly toggling flags and such without typing shell commands
+  - emacs interface
+  - no dependence on the current shell as it executes processes directly
+
+Currently implemented package managers (in progress, not many command implemented yet):
+dnf, rpm, flatpak
+**  cmus
+| summary | very simple interface to control cmus from emacs |
+| quelpa  | ~(quelpa '(cmus :fetcher github :repo "rayes0/elisp" :files ("cmus.el")))~ |
+Couple functions to run cmus from emacs with vterm,
+and do all the usual things a music player can do.
+**  nnchan
+| summary | gnus backend for 4chan |
+| quelpa  | ~(quelpa '(nnchan :fetcher github :repo "rayes0/elisp" :files ("nnchan.el")))~ |
+Thanks: https://github.com/dickmao/nntwitter/
+**  torrent-info
+| summary | show info from torrent files |
+| quelpa  | ~(quelpa '(torrent-info :fetcher github :repo "rayes0/elisp" :files ("torrent-info.el")))~ |
+Various useful things for working with torrent files.
+It currently doesn't contain much
