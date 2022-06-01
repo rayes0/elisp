@@ -38,7 +38,7 @@ Everything looks like magic when you don’t understand it.
 #+end_quote
 ")
   (insert "Note: This readme is ")
-  (org-insert-link nil "https://github.com/rayes0/elisp/blob/master/.github/make-readme.el"
+  (org-insert-link nil "https://github.com/rayes0/elisp/blob/main/.github/make-readme.el"
                    "automatically generated")
   (insert ".\n")
   (insert-org-heading-with "General Notes")

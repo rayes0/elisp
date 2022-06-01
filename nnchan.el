@@ -6,7 +6,7 @@
 ;; URL: https://github.com/rayes0/elisp
 
 ;;; Commentary:
-;; Thanks: https://github.com/dickmao/nntwitter/
+;; A Gnus backend for 4chan, using the read only JSON API.
 
 ;;; Code:
 
