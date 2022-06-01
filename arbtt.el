@@ -1,9 +1,13 @@
 ;;; arbtt.el --- view arbtt stats from emacs    -*- lexical-binding: t -*-
 ;; Version: 0.1
+;; Package-Requires: ((emacs "29"))
 
 ;; Author: rayes
-;; Package-Requires: ((emacs "29"))
 ;; URL: https://github.com/rayes0/elisp
+
+;;; Commentary:
+;; Simple way to view [[https://github.com/nomeata/arbtt][arbtt]] stats from emacs.
+;; Currently very primitive. Runs arbtt with csv output, and parses that into a table.
 
 ;;; Code:
 
@@ -21,13 +25,14 @@
 
 (defcustom arbtt-stats-flags nil
   "List of strings containing flags to pass when calling arbtt-stats."
+  :type 'list
   :group 'arbtt)
 
 (defun arbtt--filter (proc output)
   (let* ((procbuf (process-buffer proc))
          (lines (split-string (string-trim output) "\n"))
          (parsed (cl-loop for l in lines
-                       collect (split-string l ","))))
+                          collect (split-string l ","))))
     (when (buffer-live-p procbuf)
       (arbtt--contents-insert (get-buffer-create "*arbtt*") parsed))))
 
@@ -39,7 +44,7 @@
        :columns (car parsed)
        :objects (cdr parsed)
        :keymap (define-keymap
-                   "q" #'bury-buffer
+                 "q" #'bury-buffer
                  "s" #'isearch-forward
                  "t" #'arbtt-filter-tag
                  "c" #'arbtt-filter-category)))))
@@ -62,13 +67,12 @@
     (erase-buffer)
     (make-process :name "arbtt"
                   :buffer (current-buffer)
-                  :command (append (cond ((and flags arbtt-stats-flags) (list arbtt-stats-executable
-                                                                              flags
-                                                                              arbtt-stats-flags))
-                                         (flags (list arbtt-stats-executable flags))
-                                         (arbtt-stats-flags (list arbtt-stats-executable
-                                                                  arbtt-stats-flags))
-                                         (t (list arbtt-stats-executable)))
+                  :command (append (list arbtt-stats-executable)
+                                   (cond ((and flags arbtt-stats-flags)
+                                          (seq-concatenate 'list (list flags) arbtt-stats-flags))
+                                         (flags (list flags))
+                                         (arbtt-stats-flags arbtt-stats-flags)
+                                         (t ()))
                                    '("--output-format=csv"))
                   :filter #'arbtt--filter
                   :stderr (get-buffer-create "*arbtt-debug*")))

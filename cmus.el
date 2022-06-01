@@ -1,9 +1,13 @@
-;;; cmus.el --- Very simple interface to control cmus from emacs    -*- lexical-binding: t -*-
+;;; cmus.el --- very simple interface to control cmus from emacs    -*- lexical-binding: t -*-
 ;; Version: 0.1
+;; Package-Requires: ((vterm "1.0"))
 
 ;; Author: rayes
-;; Package-Requires: ((vterm "1.0"))
 ;; URL: https://github.com/rayes0/elisp
+
+;;; Commentary:
+;; Couple functions to run cmus from emacs with vterm,
+;; and do all the usual things a music player can do.
 
 ;;; Code:
 
@@ -24,22 +28,26 @@
 (defun cmus-play-pause ()
   "Toggle between play and pause."
   (interactive)
-  (call-process cmus-remote-command nil nil nil "-u"))
+  (when (cmus-running-p)
+    (call-process cmus-remote-command nil nil nil "-u")))
 
 (defun cmus-stop ()
   "Stop playing music (doesn't exit cmus though)."
   (interactive)
-  (call-process cmus-remote-command nil nil nil "-s"))
+  (when (cmus-running-p)
+    (call-process cmus-remote-command nil nil nil "-s")))
 
 (defun cmus-next ()
   "Skip to next song."
   (interactive)
-  (call-process cmus-remote-command nil nil nil "-n"))
+  (when (cmus-running-p)
+    (call-process cmus-remote-command nil nil nil "-n")))
 
 (defun cmus-previous ()
   "Go to previous song."
   (interactive)
-  (call-process cmus-remote-command nil nil nil "-r"))
+  (when (cmus-running-p)
+    (call-process cmus-remote-command nil nil nil "-r")))
 
 ;;;###autoload
 (defun cmus-vterm-start ()

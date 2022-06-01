@@ -1,19 +1,25 @@
 ;;; chika.el --- transient interface for linux package management  -*- lexical-binding: t; flycheck-disabled-checkers: (emacs-lisp-checkdoc); -*-
 ;; Version: 0.1
-
 ;; Package-Requires: ((transient "0.3.0"))
 
+;; Author: rayes
+;; URL: https://github.com/rayes0/elisp
+
 ;;; Commentary:
-;; An simple interface for package management on linux from Emacs with <https://github.com/magit/transient>.
-;; It will run a execute a package manager and insert output into a buffer.
-;; It will ask for root when performing certain actions, using TRAMP when appropriate.
+;; An simple interface for package management on linux from Emacs using <https://github.com/magit/transient>.
+;;
+;; It will:
+;;   - run a execute a package manager and insert output into a buffer.
+;;   - ask for root when performing certain actions, using TRAMP when appropriate.
+;;   - try not to abstract things too much, do things simply
 ;;
 ;; Mainly written for:
-;;   - quickly toggling flags without typing shell commands
-;;   - Emacs interface
-;;   - no dependence on the current shell as it executes processes directly (no messing with quoting, etc.)
+;;   - quickly toggling flags and such without typing shell commands
+;;   - emacs interface
+;;   - no dependence on the current shell as it executes processes directly
 ;;
-;; currently implemented package managers: dnf, rpm, flatpak
+;; Currently implemented package managers (in progress, not many command implemented yet):
+;; dnf, rpm, flatpak
 
 ;;; Code:
 
@@ -42,7 +48,7 @@ No trailing slash needed."
   :group 'chika)
 
 (defcustom chika-confirm-permissions t
-  "Non-nil to confirm when executing with root permissions.a
+  "Non-nil to confirm when executing with root permissions.
 
 It is highly recommended to leave this non-nil."
   :type 'boolean
@@ -54,13 +60,21 @@ If ROOT is non-nil, execute with root permissions using Tramp."
   (if root (or (yes-or-no-p (format "Executing with root permissions using: %s. Continue? "
                                     chika-tramp-method))
                (user-error "chika: aborted!")))
-  (with-current-buffer (get-buffer-create (format "*chika-%s-%s*" command action))
+  (with-current-buffer (let ((original (get-buffer-create (format "*chika-execute*"))))
+                         (if (process-live-p (get-buffer-process original))
+                             (cl-loop with i = 1
+                                      while (process-live-p (get-buffer-process (format "*chika-execute<%s>*" i)))
+                                      do (setf i (+ 1 i))
+                                      finally return (generate-new-buffer-name
+                                                      (format "*chika-execute<%s>*" i)))
+                           original))
     (let ((default-directory (if root
                                  (format "%s/%s" chika-tramp-method (getenv "PWD"))
                                (getenv "PWD")))
           (args (if flags
                     (append (list action) flags)
-                  (list action))))
+                  (list action)))
+          (inhibit-read-only t))
       (erase-buffer)
       (shell-mode)
       (pop-to-buffer (current-buffer))
@@ -70,7 +84,8 @@ If ROOT is non-nil, execute with root permissions using Tramp."
                             (or (alist-get command chika-executables)
                                 (error "Couldn't find executable. Check value of `chika-executables"))
                             args)))
-        (set-process-sentinel process #'chika--process-event-handler)))))
+        (set-process-sentinel process #'chika--process-event-handler)
+        (set-process-filter process #'comint-output-filter)))))
 
 (defun chika--process-event-handler (proc event)
   (message "chika: %s: %s" proc event))
@@ -107,12 +122,24 @@ If ROOT is non-nil, execute with root permissions using Tramp."
   "flatpak"
   [["Commands"
     ("u" "upgrade" chika-flatpak-upgrade)
-    ("i" "install" chika-flatpak-install)]])
+    ("i" "install" chika-flatpak-install)
+    ("s" "search" chika-flatpak-search)]])
 
 (defun chika-flatpak-upgrade (&optional args)
   "Run flatpak upgrade."
   (interactive (transient-args transient-current-command))
   (chika-execute 'flatpak "upgrade" args))
+
+(defun chika-flatpak-search (search &optional args)
+  "Run flatpak upgrade."
+  (interactive (list (read-string "package: ")
+                     (transient-args transient-current-command)))
+  (unless (not (string= search ""))
+    (user-error "chika: I need as search!"))
+  (chika-execute 'flatpak "search" (if args
+                                       (append (list search) args)
+                                     (list search))
+                 nil))
 
 (defun chika-flatpak-install (package &optional args)
   "Run flatpak install."
