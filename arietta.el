@@ -20,6 +20,9 @@
 (require 'tabulated-list)
 (require 'thunk)
 (require 'notifications)
+(require 'tramp)
+;; (require 'taxy)
+;; (require 'taxy-magit-section)
 
 (when (featurep 'vtable)
   (require 'vtable))
@@ -46,6 +49,12 @@ Using a token is recommended, see the aria2 manpage for details."
   :type 'string
   :group 'arietta)
 
+(defcustom arietta-use-tls t
+  "Whether to encrypt connections via SSL or TLS (or WSS for websocket).
+Requires that you configure aria2 to use `--rpc-secure=true'"
+  :type 'bool
+  :group 'arietta)
+
 (defcustom arietta-refresh-interval 1.0
   "Refresh interval for when the arietta buffer is open."
   :type 'float
@@ -70,6 +79,14 @@ Nil to use current directory."
   "Number of divisons to use for displaying the bitfield in bittorrent downloads."
   :type 'integer
   :group 'arietta)
+
+;; (defcustom arietta-protocol 'websocket
+;;   "What protocol to use. Either `http' or `websocket'.
+
+;; TLS or WSS can be enabled with the `arietta-use-tls' option."
+;;   :type '(choice (const http)
+;;                  (const websocket))
+;;   :group 'arietta)
 
 
 (defvar arietta--rpc nil "The aria2c RPC controller.")
@@ -150,6 +167,7 @@ Nil to use current directory."
         ("-arietta.globalStats" ;; (setf (slot-value connection 'global-stats) result)
          (with-current-buffer (setq arietta--info-buffer (get-buffer-create "*arietta-info*"))
            (let ((inhibit-read-only t))
+             (erase-buffer)
              (arietta-info-mode)
              (insert "Aria2 daemon global stats:\n")
              (insert "  Total speed (U | D):     "
@@ -213,7 +231,7 @@ Nil to use current directory."
 (defun arietta--init-aria2-rpc ()
   "Initialize the aria2 RPC connection."
   (let ((connection (arietta-rpc
-                     :websocket (websocket-open (concat "ws://"
+                     :websocket (websocket-open (concat (if arietta-use-tls "wss://" "ws://")
                                                         arietta-rpc-hostname ":"
                                                         (number-to-string arietta-rpc-port)
                                                         "/jsonrpc")
@@ -275,6 +293,16 @@ Nil to use current directory."
         (concat (calc-eval "round(($/$$)*100, 4)" nil a b) "%")
       (calc-eval "round($/$$, 4)" nil a b))))
 
+;; (defun arietta--divide (a b &optional percent)
+;;   (if (equal b "0")
+;;       "inf"
+;;     (if percent
+;;         (concat (number-to-string (* 100 (/ (float (string-to-number a))
+;;                                             (float (string-to-number b)))))
+;;                 "%")
+;;       (number-to-string (/ (float (string-to-number a))
+;;                            (float (string-to-number b)))))))
+
 (defsubst arietta--get-eta (down total)
   "Return human readable eta of download.
 The download has a download speed of DOWN and a total size of TOTAL."
@@ -287,12 +315,15 @@ The download has a download speed of DOWN and a total size of TOTAL."
 
 (defun arietta--table-vector (item)
   "Return table vector for one ITEM of `tabulated-list-mode'."
-  (let ((btl (plist-get item :bittorrent))
-        (file (plist-get item :files))
-        (status (plist-get item :status))
-        (total-length (plist-get item :totalLength))
-        (down-speed (plist-get item :downloadSpeed))
-        (up-speed (plist-get item :uploadSpeed)))
+  (let* ((btl (plist-get item :bittorrent))
+         (file (plist-get item :files))
+         (status (plist-get item :status))
+         (total-length (plist-get item :totalLength))
+         (down-speed (plist-get item :downloadSpeed))
+         (up-speed (plist-get item :uploadSpeed))
+         (stop? (pcase status
+                  ("complete" t)
+                  ("paused" t))))
     (list (plist-get item :gid)
           (vector (list (if btl
                             (or (plist-get (plist-get btl :info) :name) "[empty]")
@@ -304,11 +335,11 @@ The download has a download speed of DOWN and a total size of TOTAL."
                   (arietta--size total-length)
                   (arietta--divide (plist-get item :completedLength) total-length t)
                   (cond ((and btl (equal "true" (plist-get item :seeder))) "seeding")
-                        ((and file (equal "complete" (plist-get item :status))) "-")
+                        ((and file stop?)
+                         "-")
                         (t (arietta--get-eta down-speed total-length)))
                   (arietta--propertize-status status status)
-                  (if (and btl (not (or (string= status "complete")
-                                        (string= status "paused"))))
+                  (if (and btl (not stop?))
                       (format "%s(%s)" (plist-get item :numSeeders) (plist-get item :connections))
                     "-")
                   (if btl
@@ -365,9 +396,9 @@ The download has a download speed of DOWN and a total size of TOTAL."
 (defsubst arietta--get-gid-from-info ()
   (save-excursion
     (goto-char (point-min))
-    (re-search-forward "^gid: \\(.*\\)$")
-    (buffer-substring (match-beginning 1)
-                      (match-end 1))))
+    (when (re-search-forward "^gid: \\(.*\\)$" nil 'return-nil)
+      (buffer-substring (match-beginning 1)
+                        (match-end 1)))))
 
 (defun arietta-refresh ()
   "Refresh the arietta list buffer or info buffer."
@@ -377,10 +408,11 @@ The download has a download speed of DOWN and a total size of TOTAL."
          (when (not (timerp arietta--refresh-timer))
            (arietta--setup-timer)))
         ((eq (current-buffer) arietta--info-buffer)
-         (arietta-connection-send arietta--rpc
-                                  :id "-arietta.status"
-                                  :method 'aria2.tellStatus
-                                  :params (vector (arietta--get-gid-from-info))))))
+         (when-let ((gid (arietta--get-gid-from-info)))
+           (arietta-connection-send arietta--rpc
+                                    :id "-arietta.status"
+                                    :method 'aria2.tellStatus
+                                    :params (vector gid))))))
 
 (defun arietta--setup-timer ()
   (arietta--cancel-timer)
@@ -449,9 +481,9 @@ The download has a download speed of DOWN and a total size of TOTAL."
                                 (plist-get item :numSeeders)
                                 (plist-get item :connections))
               "\n")
-      (insert "bitfield: " (if bitfield-maybe
-                               (propertize bitfield-maybe 'face '(:box 1))
-                             "-")
+      (insert "pieces: " (if bitfield-maybe
+                             (propertize bitfield-maybe 'face '(:box 1))
+                           "-")
               "\n")
       (insert "announce: \n" )
       (dolist (u (plist-get torrent-maybe :announceList))
@@ -507,7 +539,7 @@ The download has a download speed of DOWN and a total size of TOTAL."
                           ((<= sec 0.625) "▌")
                           ((<= sec 0.75)  "▋")
                           ((< sec 1.0)    "▊")
-                          ((= sec 1.0) "▉")))))
+                          ((= sec 1.0)    "▉")))))
 
 (define-derived-mode arietta-info-mode fundamental-mode
   "Arietta-Info"
@@ -536,6 +568,27 @@ The download has a download speed of DOWN and a total size of TOTAL."
         tabulated-list-sort-key (cons "Prog" -1))
   (tabulated-list-init-header))
 
+;; (define-derived-mode arietta-mode tabulated-list-mode
+;;   "Arietta"
+;;   :group 'arietta
+;;   (arietta--ensure)
+;;   (arietta--update-downloads)
+;;   (let* ((data (arietta--data arietta--rpc))
+;;          (inhibit-read-only t))
+;;     (thread-last
+;;       (make-taxy-magit-section
+;;        :name "arietta"
+;;        :taxys (list
+;;                (make-taxy-magit-section :name "Active" :predicate (lambda (d) (equal (plist-get d :status) "active")))
+;;                (make-taxy-magit-section :name "Paused" :predicate (lambda (d) (equal (plist-get d :status) "paused")))
+;;                (make-taxy-magit-section :name "Completed" :predicate (lambda (d) (equal (plist-get d :status) "complete")))
+;;                (make-taxy-magit-section :name "Other")))
+;;       taxy-emptied
+;;       (taxy-fill (append (cdr (assq 'active data))
+;;                          (cdr (assq 'waiting data))
+;;                          (cdr (assq 'stopped data))))
+;;       taxy-magit-section-insert)))
+
 (defun arietta-add-uri (uri)
   "Add URI to the list of queued downloads."
   (interactive "sAdd URI: ")
@@ -546,6 +599,11 @@ The download has a download speed of DOWN and a total size of TOTAL."
                            :id "-arietta.add"
                            :method 'aria2.addUri
                            :params (vector (vector uri))))
+
+(defsubst arietta-dirname-for-download (name)
+  (if (tramp-tramp-file-p name)
+      (tramp-file-name-localname (tramp-dissect-file-name name))
+    (expand-file-name name)))
 
 (defun arietta-add-uri-dir (udir uri)
   "Like callin `arietta-add-uri' on URI, but use UDIR as the download directory."
@@ -559,7 +617,8 @@ The download has a download speed of DOWN and a total size of TOTAL."
   (arietta-connection-send arietta--rpc
                            :id "-arietta.add"
                            :method 'aria2.addUri
-                           :params (vector (vector uri) `((dir . ,(expand-file-name udir))))))
+                           :params (vector (vector uri)
+                                           `((dir . ,(arietta-dirname-for-download udir))))))
 
 (defun arietta-add-torrent (file)
   "Add .torrent file FILE to the list of queued downloads."
@@ -592,7 +651,7 @@ The download has a download speed of DOWN and a total size of TOTAL."
                                                             (insert-file-contents file)
                                                             (buffer-string)))
                                     []
-                                    `((dir . ,(expand-file-name udir))))))
+                                    `((dir . ,(arietta-dirname-for-download udir))))))
 
 (defmacro arietta--with-gid (&rest body)
   (declare (indent defun))
@@ -755,6 +814,7 @@ With prefix P, force shutdown."
   (interactive)
   (add-hook 'arietta-mode-hook #'arietta--setup-timer)
   (add-hook 'arietta-mode-hook #'arietta--setup-keys)
+  (add-hook 'arietta-mode-hook #'hl-line-mode)
   (setq arietta--list-buffer (get-buffer-create "*arietta*"))
   (with-current-buffer arietta--list-buffer
     (arietta-mode)

@@ -6,7 +6,7 @@
 ;; URL: https://github.com/rayes0/elisp
 
 ;;; Commentary:
-;; Various useful things for working with torrent files.
+;; Collection of functions for working with torrent files.
 ;; It currently doesn't contain much
 
 ;;; Code:
@@ -55,6 +55,8 @@
                                              (alist-get "length" o nil nil #'equal))
                                             (alist-get "length" o nil nil #'equal))))))))
     (pop-to-buffer-same-window buffer)))
+
+
 
 (provide 'torrent-info)
 
