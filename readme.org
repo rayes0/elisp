@@ -58,5 +58,5 @@ A Gnus backend for 4chan, using the read only JSON API.
 **  torrent-info
 | summary | show info from torrent files |
 | quelpa  | ~(quelpa '(torrent-info :fetcher github :repo "rayes0/elisp" :files ("torrent-info.el")))~ |
-Various useful things for working with torrent files.
+Collection of functions for working with torrent files.
 It currently doesn't contain much
